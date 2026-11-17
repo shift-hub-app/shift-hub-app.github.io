@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>シフト</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="シフト">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2c5a85">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root { --primary: #2c5a85; --soft: #e6eef6; --text: #1f2430; --muted: #5d6475; }
+  html, body { margin: 0; height: 100%; background: #f4f5f7; overflow: hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--text); }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #f4f5f7; }
+  #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; background: #f4f5f7; padding: 0 32px; transition: opacity .35s ease; z-index: 2; }
+  #splash.done { opacity: 0; pointer-events: none; }
+  #splash img { width: 88px; height: 88px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  #splash h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: .05em; }
+  .bar { width: min(240px, 70vw); height: 6px; border-radius: 3px; background: var(--soft); overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--primary); transition: width .3s ease; }
+  #msg { margin: 0; min-height: 1.5em; font-size: 14px; color: var(--muted); text-align: center; line-height: 1.5; }
+  #slow { display: none; flex-direction: column; align-items: center; gap: 10px; }
+  #slow.show { display: flex; }
+  #slow button { min-height: 44px; padding: 0 24px; border: 0; border-radius: 10px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 700; }
+  #slow a { color: var(--primary); font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { .bar span, #splash { transition: none; } }
+</style>
+</head>
+<body>
+<div id="splash" role="status" aria-live="polite">
+  <img src="icon-180.png" alt="">
+  <h1>シフト</h1>
+  <div class="bar" role="progressbar" aria-label="読み込み中" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="fill"></span></div>
+  <p id="msg">読み込み中…</p>
+  <div id="slow">
+    <button type="button" id="retry">もう一度読み込む</button>
+    <a id="direct" href="#" target="_blank" rel="noopener">Safariで直接開く</a>
+  </div>
+</div>
+<iframe id="app" title="シフト" allow="clipboard-write"></iframe>
+<script>
+  // アプリ（Apps Script）の公開URL。デプロイし直してURLが変わったらここだけ直す
+  var APP_URL = 'https://script.google.com/macros/s/DEPLOYMENT_ID/exec';
+  // ローカル確認用：localhost で開いた時だけ ?src= で差し替えられる
+  var q = new URLSearchParams(location.search);
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && q.get('src')) APP_URL = q.get('src');
+
+  var frame = document.getElementById('app'), splash = document.getElementById('splash');
+  var fill = document.getElementById('fill'), bar = fill.parentNode, msg = document.getElementById('msg'), slow = document.getElementById('slow');
+  document.getElementById('direct').href = APP_URL;
+  var timer = null, slowTimer = null, start = 0;
+
+  function setBar(p) { fill.style.width = p + '%'; bar.setAttribute('aria-valuenow', Math.round(p)); }
+  // 実際の進み具合は分からないので、時間とともに90%へ近づけ、読み込みが終わったら100%にする
+  function tick() { var t = (Date.now() - start) / 1000; setBar(90 * (1 - Math.exp(-t / 2.5))); }
+  function load() {
+    start = Date.now(); setBar(0); msg.textContent = '読み込み中…'; slow.classList.remove('show');
+    splash.classList.remove('done');
+    clearInterval(timer); clearTimeout(slowTimer);
+    timer = setInterval(tick, 150);
+    slowTimer = setTimeout(function () {
+      msg.textContent = '時間がかかっています。電波の良い場所でもう一度お試しください。';
+      slow.classList.add('show');
+    }, 20000);
+    frame.src = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+  }
+  frame.addEventListener('load', function () {
+    if (!frame.getAttribute('src')) return;
+    clearInterval(timer); clearTimeout(slowTimer);
+    setBar(100);
+    setTimeout(function () { splash.classList.add('done'); }, 300);
+  });
+  document.getElementById('retry').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>
