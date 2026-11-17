@@ -49,7 +49,10 @@
   var APP_URL = 'https://script.google.com/macros/s/DEPLOYMENT_ID/exec';
   // ローカル確認用：localhost で開いた時だけ ?src= で差し替えられる
   var q = new URLSearchParams(location.search);
-  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && q.get('src')) APP_URL = q.get('src');
+  var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if (LOCAL && q.get('src')) APP_URL = q.get('src');
+  // ローカル確認用：?delay=秒 で読み込みを遅らせ、進捗バーの動きを見られる
+  var DELAY = LOCAL ? Math.min(Number(q.get('delay')) || 0, 30) * 1000 : 0;
 
   var frame = document.getElementById('app'), splash = document.getElementById('splash');
   var fill = document.getElementById('fill'), bar = fill.parentNode, msg = document.getElementById('msg'), slow = document.getElementById('slow');
@@ -68,7 +71,8 @@
       msg.textContent = '時間がかかっています。電波の良い場所でもう一度お試しください。';
       slow.classList.add('show');
     }, 20000);
-    frame.src = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+    var url = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+    setTimeout(function () { frame.src = url; }, DELAY);
   }
   frame.addEventListener('load', function () {
     if (!frame.getAttribute('src')) return;
